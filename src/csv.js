@@ -15,7 +15,7 @@ async function process(path, processor) {
     .pipe(
       csv.stringify({
         header: true,
-        columns: Object.keys(KlineKeys).concat(processor.columns),
+        columns: processor.columns,
       })
     )
     .pipe(stream)
