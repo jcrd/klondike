@@ -1,9 +1,9 @@
-import { EMA } from "@debut/indicators"
+import { EMA, RSI } from "@debut/indicators"
 
 import { KlineKeys, parseKline } from "./klines.js"
 
 export default function Processor() {
-  const indicators = { ema10: new EMA(10) }
+  const indicators = { ema10: new EMA(10), ema20: new EMA(20), rsi: new RSI() }
 
   return {
     columns: Object.keys(indicators),
