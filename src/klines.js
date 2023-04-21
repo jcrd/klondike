@@ -17,6 +17,15 @@ export function parseKline(k) {
   return [Number(k[0]), ...k.slice(1, 6).map((s) => parseFloat(s))]
 }
 
+export function klineObject(k) {
+  const obj = {}
+  const keys = Object.keys(KlineKeys)
+  for (const [i, v] of k.entries()) {
+    obj[keys[i]] = v
+  }
+  return obj
+}
+
 export async function getKline(symbol, interval, timestamp = undefined) {
   const args = {
     limit: 1,
