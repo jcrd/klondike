@@ -105,7 +105,9 @@ function indicatorsProcessor() {
         return null
       }
 
-      const start = horizon[0]
+      // The second kline represents round lock (first is at bet time).
+      const start = horizon[1]
+      // The last kline represents round close.
       const end = horizon[horizon.length - 1]
 
       return [...values, start[KlineKeys.close] < end[KlineKeys.close] ? 1 : -1]
