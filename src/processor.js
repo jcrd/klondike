@@ -1,9 +1,37 @@
 import { CCI, SMA, WMA, RSI } from "@debut/indicators"
 
-import { KlineKeys, parseKline, klineObject } from "./klines.js"
+import { KlineKeys, klineObject } from "./klines.js"
+import { newFixedArray } from "./utils.js"
 
 const id = {
   kline: 0,
+}
+
+function ohlcProcessor(seconds, volume) {
+  const columns = ["id", ...Object.keys(KlineKeys)]
+  if (!volume) {
+    columns.pop()
+  }
+  return {
+    columns,
+    transform: (kline) => {
+      if (!volume) {
+        kline.pop()
+      }
+      return [id.kline, seconds ? kline[0] / 1000 : kline[0], ...kline.slice(1)]
+    },
+  }
+}
+
+function closeOnlyProcessor(seconds) {
+  return {
+    columns: ["id", "timestamp", "close"],
+    transform: (kline) => [
+      id.kline,
+      seconds ? kline[KlineKeys.timestamp] / 1000 : kline[KlineKeys.timestamp],
+      kline[KlineKeys.close],
+    ],
+  }
 }
 
 function maTrend({ close, value }) {
@@ -26,13 +54,7 @@ function withClose(indicator) {
   return ({ close }) => indicator.nextValue(close)
 }
 
-export default function Processor(opts = {}) {
-  const def = opts.closeOnly
-    ? { volume: false, indicators: false, seconds: true }
-    : { volume: true, indicators: true, seconds: true }
-
-  opts = { ...def, ...opts }
-
+function indicatorsProcessor() {
   const indicators = {
     sma10: {
       nextValue: withClose(new SMA(10)),
@@ -56,58 +78,55 @@ export default function Processor(opts = {}) {
     },
   }
 
-  const columns = ["id", ...Object.keys(KlineKeys)]
-  if (!opts.volume) {
-    columns.pop()
-  }
-  if (opts.indicators) {
-    columns.push(...Object.keys(indicators))
-  }
-
   const priorValues = {}
+  const horizon = newFixedArray(7)
 
   return {
-    columns: opts.closeOnly ? ["id", "timestamp", "close"] : columns,
+    columns: [...Object.keys(indicators), "trend"],
     transform: (kline) => {
-      kline = parseKline(kline)
-      if (!opts.volume) {
-        kline.pop()
-      }
-
       const kobj = klineObject(kline)
-      let values = []
+      const values = Object.entries(indicators).map(([name, indicator]) => {
+        const value = indicator.nextValue(kobj)
+        const priorValue = priorValues[name]
 
-      if (opts.indicators) {
-        values = Object.entries(indicators).map(([name, indicator]) => {
-          const value = indicator.nextValue(kobj)
-          const priorValue = priorValues[name]
-
-          if (value === undefined) {
-            return undefined
-          }
-
-          priorValues[name] = value
-
-          return indicator.trend({ close: kobj.close, value, priorValue })
-        })
-
-        if (values.filter((v) => v === undefined).length > 0) {
-          return null
+        if (value === undefined) {
+          return undefined
         }
+
+        priorValues[name] = value
+
+        return indicator.trend({ close: kobj.close, value, priorValue })
+      })
+
+      if (
+        !horizon.add(kline) ||
+        values.filter((v) => v === undefined).length > 0
+      ) {
+        return null
       }
 
-      return opts.closeOnly
-        ? [
-            id.kline,
-            opts.seconds ? kobj.timestamp / 1000 : kobj.timestamp,
-            kobj.close,
-          ]
-        : [
-            id.kline,
-            opts.seconds ? kline[0] / 1000 : kline[0],
-            ...kline.slice(1),
-            ...values,
-          ]
+      const start = horizon[0]
+      const end = horizon[horizon.length - 1]
+
+      return [...values, start[KlineKeys.close] < end[KlineKeys.close] ? 1 : -1]
     },
+  }
+}
+
+export default function Processor(opts = {}) {
+  const def = {
+    seconds: true,
+    volume: true,
+  }
+
+  opts = { ...def, ...opts }
+
+  switch (opts.processor) {
+    case "indicators":
+      return indicatorsProcessor()
+    case "closeOnly":
+      return closeOnlyProcessor(opts.seconds)
+    default:
+      return ohlcProcessor(opts.seconds, opts.volume)
   }
 }

@@ -11,7 +11,7 @@ async function process(path, processor) {
 
   fs.createReadStream(path + ".csv")
     .pipe(csv.parse({ from_line: 2 }))
-    .pipe(csv.transform(processor.transform))
+    .pipe(csv.transform((kline) => processor.transform(parseKline(kline))))
     .pipe(
       csv.stringify({
         header: true,
