@@ -17,7 +17,7 @@ if (fs.existsSync(path)) {
     await csv.verify()
   }
   if (data.process) {
-    await csv.process(Processor())
+    await csv.process(Processor(data.options))
   }
 } else {
   console.log(`rc file: ${path} not found`)
