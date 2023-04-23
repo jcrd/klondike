@@ -2,6 +2,10 @@ import { CCI, SMA, WMA, RSI } from "@debut/indicators"
 
 import { KlineKeys, parseKline, klineObject } from "./klines.js"
 
+const id = {
+  kline: 0,
+}
+
 function maTrend({ close, value }) {
   return close < value ? -1 : 1
 }
@@ -23,7 +27,11 @@ function withClose(indicator) {
 }
 
 export default function Processor(opts = {}) {
-  opts = { ...{ volume: true, indicators: true }, ...opts }
+  const def = opts.closeOnly
+    ? { volume: false, indicators: false }
+    : { volume: true, indicators: true }
+
+  opts = { ...def, ...opts }
 
   const indicators = {
     sma10: {
@@ -48,7 +56,7 @@ export default function Processor(opts = {}) {
     },
   }
 
-  const columns = Object.keys(KlineKeys)
+  const columns = ["id", ...Object.keys(KlineKeys)]
   if (!opts.volume) {
     columns.pop()
   }
@@ -59,17 +67,17 @@ export default function Processor(opts = {}) {
   const priorValues = {}
 
   return {
-    columns,
+    columns: opts.closeOnly ? ["id", "timestamp", "close"] : columns,
     transform: (kline) => {
       kline = parseKline(kline)
       if (!opts.volume) {
         kline.pop()
       }
 
+      const kobj = klineObject(kline)
       let values = []
 
       if (opts.indicators) {
-        const kobj = klineObject(kline)
         values = Object.entries(indicators).map(([name, indicator]) => {
           const value = indicator.nextValue(kobj)
           const priorValue = priorValues[name]
@@ -88,7 +96,9 @@ export default function Processor(opts = {}) {
         }
       }
 
-      return [kline[0] / 1000, ...kline.slice(1), ...values]
+      return opts.closeOnly
+        ? [id.kline, kobj.timestamp / 1000, kobj.close]
+        : [id.kline, kline[0] / 1000, ...kline.slice(1), ...values]
     },
   }
 }
