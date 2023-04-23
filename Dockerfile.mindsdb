@@ -1,0 +1,9 @@
+FROM mindsdb/mindsdb
+
+RUN echo '\
+statsforecast>=1.5.0, <2.0\n\
+hierarchicalforecast<1.0\n\
+neuralforecast>=1.4.0, <2.0\n\
+hyperopt<1.0' > requirements.txt
+
+RUN pip install -r requirements.txt
