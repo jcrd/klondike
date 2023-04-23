@@ -28,8 +28,8 @@ function withClose(indicator) {
 
 export default function Processor(opts = {}) {
   const def = opts.closeOnly
-    ? { volume: false, indicators: false }
-    : { volume: true, indicators: true }
+    ? { volume: false, indicators: false, seconds: true }
+    : { volume: true, indicators: true, seconds: true }
 
   opts = { ...def, ...opts }
 
@@ -97,8 +97,17 @@ export default function Processor(opts = {}) {
       }
 
       return opts.closeOnly
-        ? [id.kline, kobj.timestamp / 1000, kobj.close]
-        : [id.kline, kline[0] / 1000, ...kline.slice(1), ...values]
+        ? [
+            id.kline,
+            opts.seconds ? kobj.timestamp / 1000 : kobj.timestamp,
+            kobj.close,
+          ]
+        : [
+            id.kline,
+            opts.seconds ? kline[0] / 1000 : kline[0],
+            ...kline.slice(1),
+            ...values,
+          ]
     },
   }
 }
