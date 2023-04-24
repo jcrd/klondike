@@ -7,17 +7,11 @@ const id = {
   kline: 0,
 }
 
-function ohlcProcessor(seconds, volume) {
+function ohlcProcessor(seconds) {
   const columns = ["id", ...Object.keys(KlineKeys)]
-  if (!volume) {
-    columns.pop()
-  }
   return {
     columns,
     transform: (kline) => {
-      if (!volume) {
-        kline.pop()
-      }
       return [id.kline, seconds ? kline[0] / 1000 : kline[0], ...kline.slice(1)]
     },
   }
@@ -133,7 +127,6 @@ function indicatorsProcessor() {
 export default function Processor(opts = {}) {
   const def = {
     seconds: true,
-    volume: true,
   }
 
   opts = { ...def, ...opts }
@@ -144,6 +137,6 @@ export default function Processor(opts = {}) {
     case "closeOnly":
       return closeOnlyProcessor(opts.seconds)
     default:
-      return ohlcProcessor(opts.seconds, opts.volume)
+      return ohlcProcessor(opts.seconds)
   }
 }

@@ -8,13 +8,12 @@ export const KlineKeys = {
   high: 2,
   low: 3,
   close: 4,
-  volume: 5,
 }
 
 const client = new Spot("", "", { baseURL: "https://api.binance.us" })
 
 export function parseKline(k) {
-  return [Number(k[0]), ...k.slice(1, 6).map((s) => parseFloat(s))]
+  return [Number(k[0]), ...k.slice(1, 5).map((s) => parseFloat(s))]
 }
 
 export function klineObject(k) {
