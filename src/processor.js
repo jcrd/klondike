@@ -1,4 +1,4 @@
-import { CCI, SMA, WMA, RSI } from "@debut/indicators"
+import { CCI, SMA, WMA, ROC, RSI } from "@debut/indicators"
 
 import { KlineKeys, klineObject } from "./klines.js"
 import { newFixedArray } from "./utils.js"
@@ -75,6 +75,10 @@ function indicatorsProcessor() {
           indicator.nextValue(high, low, close)
       )(new CCI()),
       trend: oscillatorTrend(200, -200),
+    },
+    roc: {
+      nextValue: withClose(new ROC()),
+      trend: ({ value }) => (value < 0 ? -1 : 1),
     },
   }
 
