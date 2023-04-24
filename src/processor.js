@@ -1,4 +1,4 @@
-import { CCI, EMA, SMA, WMA, ROC, RSI } from "@debut/indicators"
+import { CCI, EMA, Stochastic, SMA, WMA, ROC, RSI } from "@debut/indicators"
 
 import { KlineKeys, klineObject } from "./klines.js"
 import { newFixedArray } from "./utils.js"
@@ -54,6 +54,10 @@ function withClose(indicator) {
   return ({ close }) => indicator.nextValue(close)
 }
 
+function withHLC(indicator) {
+  return ({ high, low, close }) => indicator.nextValue(high, low, close)
+}
+
 function indicatorsProcessor() {
   const indicators = {
     ema10: {
@@ -72,17 +76,20 @@ function indicatorsProcessor() {
       nextValue: withClose(new RSI()),
       trend: oscillatorTrend(70, 30),
     },
-    cci: {
-      nextValue: (
-        (indicator) =>
-        ({ high, low, close }) =>
-          indicator.nextValue(high, low, close)
-      )(new CCI()),
-      trend: oscillatorTrend(200, -200),
-    },
     roc: {
       nextValue: withClose(new ROC()),
       trend: ({ value }) => (value < 0 ? -1 : 1),
+    },
+    cci: {
+      nextValue: withHLC(new CCI()),
+      trend: oscillatorTrend(200, -200),
+    },
+    stoch: {
+      nextValue: withHLC(new Stochastic()),
+      trend: (() => {
+        const t = oscillatorTrend(80, 20)
+        return ({ value }) => t({ value: value.k, priorValue: value.d })
+      })(),
     },
   }
 
