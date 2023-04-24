@@ -1,4 +1,4 @@
-import { CCI, SMA, WMA, ROC, RSI } from "@debut/indicators"
+import { CCI, EMA, SMA, WMA, ROC, RSI } from "@debut/indicators"
 
 import { KlineKeys, klineObject } from "./klines.js"
 import { newFixedArray } from "./utils.js"
@@ -56,6 +56,10 @@ function withClose(indicator) {
 
 function indicatorsProcessor() {
   const indicators = {
+    ema10: {
+      nextValue: withClose(new EMA(10)),
+      trend: maTrend,
+    },
     sma10: {
       nextValue: withClose(new SMA(10)),
       trend: maTrend,
