@@ -52,7 +52,7 @@ function withHLC(indicator) {
   return ({ high, low, close }) => indicator.nextValue(high, low, close)
 }
 
-function indicatorsProcessor() {
+function indicatorsProcessor(stream = false) {
   const indicators = {
     ema10: {
       nextValue: withClose(new EMA(10)),
@@ -89,9 +89,13 @@ function indicatorsProcessor() {
 
   const priorValues = {}
   const horizon = newFixedArray(7)
+  const columns = Object.keys(indicators)
+  if (!stream) {
+    columns.push("trend")
+  }
 
   return {
-    columns: [...Object.keys(indicators), "trend"],
+    columns,
     transform: (kline) => {
       const kobj = klineObject(kline)
       const values = Object.entries(indicators).map(([name, indicator]) => {
@@ -107,33 +111,38 @@ function indicatorsProcessor() {
         return indicator.trend({ close: kobj.close, value, priorValue })
       })
 
-      if (
-        !horizon.add(kline) ||
-        values.filter((v) => v === undefined).length > 0
-      ) {
+      if (values.filter((v) => v === undefined).length > 0) {
         return null
       }
 
-      // The second kline represents round lock (first is at bet time).
-      const start = horizon[1]
-      // The last kline represents round close.
-      const end = horizon[horizon.length - 1]
-
-      return [...values, start[KlineKeys.close] < end[KlineKeys.close] ? 1 : -1]
+      if (stream) {
+        return values
+      } else {
+        if (!horizon.add(kline)) {
+          return null
+        }
+        // The second kline represents round lock (first is at bet time).
+        const start = horizon[1]
+        // The last kline represents round close.
+        const end = horizon[horizon.length - 1]
+        return [
+          ...values,
+          start[KlineKeys.close] < end[KlineKeys.close] ? 1 : -1,
+        ]
+      }
     },
   }
 }
 
-export default function Processor(opts = {}) {
-  const def = {
+export default function Processor(opts, stream = false) {
+  opts = {
     seconds: true,
+    ...(opts || {}),
   }
-
-  opts = { ...def, ...opts }
 
   switch (opts.processor) {
     case "indicators":
-      return indicatorsProcessor()
+      return indicatorsProcessor(stream)
     case "closeOnly":
       return closeOnlyProcessor(opts.seconds)
     default:
