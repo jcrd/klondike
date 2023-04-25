@@ -1,0 +1,14 @@
+{
+  "klines": {
+    "symbol": "BNBUSD",
+    "interval": 1,
+    "suffix": "m",
+    "limit": 86400
+  },
+  "write": true,
+  "verify": true,
+  "process": true,
+  "options": {
+    "processor": "indicators"
+  }
+}
