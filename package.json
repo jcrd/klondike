@@ -1,7 +1,7 @@
 {
   "type": "module",
   "scripts": {
-    "predict": "PREDICT_MODE=true node src/app.js",
+    "predict": "node src/app.js rc.predict.json",
     "start": "node src/app.js",
     "test": "npx mocha"
   },

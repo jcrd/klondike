@@ -9,11 +9,7 @@ import Predictor from "./predictor.js"
 import * as dotenv from "dotenv"
 dotenv.config()
 
-let path = process.argv[2] ? process.argv[2] : "rc.json"
-
-if (process.env.PREDICT_MODE) {
-  path = "rc.predict.json"
-}
+const path = process.argv[2] ? process.argv[2] : "rc.json"
 
 async function csvMode(data) {
   const csv = newCSV(data.klines)
