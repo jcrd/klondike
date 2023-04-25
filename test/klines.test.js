@@ -5,6 +5,7 @@ import klines, { getRecentTimestamp } from "../src/klines.js"
 describe("klines", () => {
   it("should generate 1m klines with sequential timestamps", async () => {
     let last = 0
+    let count = 0
     for await (const kline of klines({
       symbol: "BNBUSD",
       interval: 1,
@@ -16,11 +17,14 @@ describe("klines", () => {
         assert.equal(now, last + 60 * 1000)
       }
       last = now
+      count++
     }
     assert.equal(last, await getRecentTimestamp("BNBUSD", "1m"))
+    assert.equal(count, 1001)
   })
   it("should generate 5m klines with sequential timestamps", async () => {
     let last = 0
+    let count = 0
     for await (const kline of klines({
       symbol: "BNBUSD",
       interval: 5,
@@ -32,7 +36,9 @@ describe("klines", () => {
         assert.equal(now, last + 60 * 5 * 1000)
       }
       last = now
+      count++
     }
     assert.equal(last, await getRecentTimestamp("BNBUSD", "5m"))
+    assert.equal(count, 1001)
   })
 })

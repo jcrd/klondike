@@ -50,7 +50,7 @@ export default async function* klines({ symbol, interval, suffix, limit }) {
         await client.klines(symbol, intervalName, {
           startTime:
             (await getRecentTimestamp(symbol, intervalName)) -
-            interval * (limit - 1) * 1000,
+            interval * 60 * (limit - 1) * 1000,
           limit: maxKlineLimit,
         })
       ).data
