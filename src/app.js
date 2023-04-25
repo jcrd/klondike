@@ -4,8 +4,16 @@ import { WebSocketServer } from "ws"
 import newCSV from "./csv.js"
 import newStream from "./stream.js"
 import Processor from "./processor.js"
+import Predictor from "./predictor.js"
 
-const path = process.argv[2] ? process.argv[2] : "rc.json"
+import * as dotenv from "dotenv"
+dotenv.config()
+
+let path = process.argv[2] ? process.argv[2] : "rc.json"
+
+if (process.env.PREDICT_MODE) {
+  path = "rc.predict.json"
+}
 
 async function csvMode(data) {
   const csv = newCSV(data.klines)
@@ -21,7 +29,7 @@ async function csvMode(data) {
   }
 }
 
-async function streamMode(data) {
+async function streamMode(data, processor, predictor = undefined) {
   const port = process.env.PORT || 8080
   const wss = new WebSocketServer({ port })
   let websockets = []
@@ -35,15 +43,15 @@ async function streamMode(data) {
 
   console.log(`Streaming on port: ${port}`)
 
-  const stream = await newStream(
-    data.klines,
-    Processor(data.options, true),
-    (kline) => {
-      websockets.forEach((ws) => ws.send(JSON.stringify(kline)))
-    }
-  )
+  const transform = predictor === undefined ? async (k) => k : predictor.predict
+
+  const stream = await newStream(data.klines, processor, async (kline) => {
+    kline = await transform(kline)
+    websockets.forEach((ws) => ws.send(JSON.stringify(kline)))
+  })
 
   process.on("SIGINT", () => {
+    predictor.abort()
     stream.disconnect()
     websockets.forEach((ws) => ws.close())
     wss.close()
@@ -51,14 +59,30 @@ async function streamMode(data) {
   })
 }
 
+async function predictMode(data) {
+  const processor = Processor(data.options, true)
+  const predictor = Predictor(
+    process.env.MINDSDB_MODEL,
+    process.env.MINDSDB_LABEL,
+    processor.columns
+  )
+  await streamMode(data, processor, predictor)
+}
+
 if (fs.existsSync(path)) {
   console.log(`rc file: using ${path}`)
   const data = JSON.parse(fs.readFileSync(path))
   switch (data.mode) {
+    case "predict":
+      console.log("Running in predict mode")
+      await predictMode(data)
+      break
     case "stream":
-      await streamMode(data)
+      console.log("Running in stream mode")
+      await streamMode(data, Processor(data.options, true))
       break
     default:
+      console.log("Running in csv mode")
       await csvMode(data)
   }
 } else {

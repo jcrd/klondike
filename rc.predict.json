@@ -1,0 +1,11 @@
+{
+  "mode": "predict",
+  "klines": {
+    "symbol": "BNBUSD",
+    "interval": 1,
+    "suffix": "m"
+  },
+  "options": {
+    "processor": "indicators"
+  }
+}

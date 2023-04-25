@@ -8,11 +8,11 @@ const logger = new Console({ stdout: process.stdout, stderr: process.stderr })
 
 function klineWebsocket(symbol, interval, callback) {
   const callbacks = {
-    message: (data) => {
+    message: async (data) => {
       data = JSON.parse(data)
       const k = data.k
       if (k.x) {
-        callback(parseKline([k.t, k.o, k.h, k.l, k.c]))
+        await callback(parseKline([k.t, k.o, k.h, k.l, k.c]))
       }
     },
   }
@@ -52,10 +52,10 @@ export default async function newStream(
     )
   }
 
-  return klineWebsocket(symbol, intervalName, (kline) => {
+  return klineWebsocket(symbol, intervalName, async (kline) => {
     const k = processor.transform(kline)
     if (k !== null) {
-      callback(k)
+      await callback(k)
     }
   })
 }
