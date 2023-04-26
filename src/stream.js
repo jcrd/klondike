@@ -45,7 +45,7 @@ export default async function newStream(
   }
 
   if (recentKline !== undefined) {
-    callback(recentKline)
+    await callback(recentKline)
   } else {
     logger.error(
       `Recent ${intervalName} kline is undefined; limit may be insufficient`
