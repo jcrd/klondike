@@ -2,7 +2,7 @@ import { Console } from "console"
 
 import { WebsocketStream } from "@binance/connector"
 
-import klines, { parseKline } from "./klines.js"
+import klines, { parseKline, KlineKeys } from "./klines.js"
 
 const logger = new Console({ stdout: process.stdout, stderr: process.stderr })
 
@@ -35,17 +35,18 @@ export default async function newStream(
   callback
 ) {
   const intervalName = String(interval) + suffix
+  const recent = {}
 
-  let recentKline
   for await (const kline of klines({ symbol, interval, suffix, limit: 60 })) {
     const k = processor.transform(kline)
     if (k !== null) {
-      recentKline = k
+      recent.kline = k
+      recent.timestamp = kline[KlineKeys.timestamp]
     }
   }
 
-  if (recentKline !== undefined) {
-    await callback(recentKline)
+  if (recent.kline !== undefined) {
+    await callback(recent)
   } else {
     logger.error(
       `Recent ${intervalName} kline is undefined; limit may be insufficient`
@@ -55,7 +56,7 @@ export default async function newStream(
   return klineWebsocket(symbol, intervalName, async (kline) => {
     const k = processor.transform(kline)
     if (k !== null) {
-      await callback(k)
+      await callback({ kline: k, timestamp: kline[KlineKeys.timestamp] })
     }
   })
 }

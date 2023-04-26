@@ -39,12 +39,17 @@ async function streamMode(data, processor, predictor = undefined) {
 
   console.log(`Streaming on port: ${port}`)
 
-  const transform = predictor === undefined ? async (k) => k : predictor.predict
+  const transform =
+    predictor === undefined ? async (k, ts) => [ts, ...k] : predictor.predict
 
-  const stream = await newStream(data.klines, processor, async (kline) => {
-    kline = await transform(kline)
-    websockets.forEach((ws) => ws.send(JSON.stringify(kline)))
-  })
+  const stream = await newStream(
+    data.klines,
+    processor,
+    async ({ kline, timestamp }) => {
+      const result = await transform(kline, timestamp)
+      websockets.forEach((ws) => ws.send(JSON.stringify(result)))
+    }
+  )
 
   process.on("SIGINT", () => {
     predictor.abort()
@@ -58,8 +63,11 @@ async function streamMode(data, processor, predictor = undefined) {
 async function predictMode(data) {
   const processor = Processor(data.options, true)
   const predictor = Predictor(
+    process.env.MINDSDB_URL,
     process.env.MINDSDB_MODEL,
     process.env.MINDSDB_LABEL,
+    process.env.MINDSDB_HORIZON,
+    data.klines.interval,
     processor.columns
   )
   await streamMode(data, processor, predictor)

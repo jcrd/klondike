@@ -1,10 +1,16 @@
-export default function Predictor(model, label, columns) {
+export default function Predictor(
+  url,
+  model,
+  label,
+  horizon,
+  interval,
+  columns
+) {
+  url = url + `/api/projects/mindsdb/models/${model}/predict`
   const controller = new AbortController()
-  const url =
-    process.env.MINDSDB_URL + `/api/projects/mindsdb/models/${model}/predict`
 
   return {
-    predict: async (input) => {
+    predict: async (input, timestamp) => {
       const data = {}
       for (const [i, v] of input.entries()) {
         data[columns[i]] = String(v)
@@ -19,7 +25,10 @@ export default function Predictor(model, label, columns) {
       })
       const json = await res.json()
       return {
-        trend: Number(json[0][label]),
+        input_timestamp: timestamp,
+        prediction_timestamp:
+          timestamp + Number(horizon) * interval * 60 * 1000,
+        prediction: Number(json[0][label]),
         confidence: json[0][`${label}_confidence`],
       }
     },
