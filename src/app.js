@@ -66,7 +66,7 @@ async function predictMode(data) {
     process.env.MINDSDB_URL,
     process.env.MINDSDB_MODEL,
     data.options,
-    data.klines.interval,
+    data.klines,
     processor.columns
   )
   await streamMode(data, processor, predictor)

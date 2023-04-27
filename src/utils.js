@@ -9,3 +9,16 @@ export function newFixedArray(length) {
   }
   return array
 }
+
+export function newInterval(value, suffix) {
+  let seconds
+  switch (suffix) {
+    case "s":
+      seconds = 1
+      break
+    case "m":
+      seconds = value * 60
+      break
+  }
+  return [seconds, String(value) + suffix]
+}

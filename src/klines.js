@@ -1,5 +1,7 @@
 import { Spot } from "@binance/connector"
 
+import { newInterval } from "./utils.js"
+
 const maxKlineLimit = 1000
 
 export const KlineKeys = {
@@ -40,7 +42,7 @@ export async function getRecentTimestamp(symbol, interval) {
 }
 
 export default async function* klines({ symbol, interval, suffix, limit }) {
-  const intervalName = String(interval) + suffix
+  const [intervalSeconds, intervalName] = newInterval(interval, suffix)
   let lastEndTime = 0
 
   for (let i = 0; i < Math.ceil(limit / maxKlineLimit); i++) {
@@ -50,14 +52,14 @@ export default async function* klines({ symbol, interval, suffix, limit }) {
         await client.klines(symbol, intervalName, {
           startTime:
             (await getRecentTimestamp(symbol, intervalName)) -
-            interval * 60 * (limit - 1) * 1000,
+            intervalSeconds * (limit - 1) * 1000,
           limit: maxKlineLimit,
         })
       ).data
     } else {
       lines = (
         await client.klines(symbol, intervalName, {
-          startTime: lastEndTime + interval * 1000,
+          startTime: lastEndTime + intervalSeconds * 1000,
           limit: maxKlineLimit,
         })
       ).data

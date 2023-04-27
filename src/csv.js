@@ -4,6 +4,7 @@ import * as csv from "csv"
 import progress from "cli-progress"
 
 import klines, { KlineKeys, parseKline } from "./klines.js"
+import { newInterval } from "./utils.js"
 
 async function process(path, processor) {
   const ppath = path + "-processed.csv"
@@ -28,14 +29,14 @@ async function process(path, processor) {
   })
 }
 
-async function verify(path) {
+async function verify(path, intervalSeconds) {
   let last = 0
   const stream = fs.createReadStream(path)
 
   stream.pipe(csv.parse({ from_line: 2 })).on("data", (kline) => {
     kline = parseKline(kline)
     const now = kline[0]
-    const expect = last + 60 * 1000
+    const expect = last + intervalSeconds * 1000
     if (last > 0 && now !== expect) {
       console.log(`Bad timestamp: actual ${now}, expected ${expect}`)
     }
@@ -76,11 +77,12 @@ async function write(path, args, withBar = true) {
 export default function newCSV(args, datadir = "data") {
   const path = `${datadir}/${args.symbol}_${args.interval}${args.suffix}_${args.limit}`
   const pathExt = path + ".csv"
+  const [intervalSeconds, _] = newInterval(args.interval, args.suffix)
 
   return {
     path: pathExt,
     write: async () => write(pathExt, args),
-    verify: async () => verify(pathExt),
+    verify: async () => verify(pathExt, intervalSeconds),
     process: async (p) => process(path, p),
   }
 }
