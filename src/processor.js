@@ -17,7 +17,7 @@ function ohlcProcessor(seconds) {
   }
 }
 
-function closeOnlyProcessor(seconds) {
+function closeProcessor(seconds) {
   return {
     columns: ["id", "timestamp", "close"],
     transform: (kline) => [
@@ -147,8 +147,8 @@ export default function Processor(opts, stream = false) {
       return indicatorsProcessor(false, stream)
     case "indicators:binary":
       return indicatorsProcessor(true, stream)
-    case "closeOnly":
-      return closeOnlyProcessor(opts.seconds)
+    case "close":
+      return closeProcessor(opts.seconds)
     default:
       return ohlcProcessor(opts.seconds)
   }
