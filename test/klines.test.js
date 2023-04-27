@@ -1,4 +1,4 @@
-import assert from "assert"
+import { assert, expect } from "chai"
 
 import klines, { getRecentTimestamp } from "../src/klines.js"
 
@@ -19,7 +19,9 @@ describe("klines", () => {
       last = now
       count++
     }
-    assert.equal(last, await getRecentTimestamp("BNBUSD", "1s"))
+    // Race condition with 1s klines.
+    const ts = await getRecentTimestamp("BNBUSD", "1s")
+    expect(last).to.be.oneOf([ts, ts - 1 * 1000])
     assert.equal(count, 1001)
   })
   it("should generate 1m klines with sequential timestamps", async () => {
