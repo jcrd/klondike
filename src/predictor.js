@@ -11,6 +11,8 @@ export default function Predictor(
 
   return {
     predict: async (input, timestamp) => {
+      // Convert to seconds.
+      timestamp /= 1000
       const data = {}
       for (const [i, v] of input.entries()) {
         data[columns[i]] = String(v)
@@ -26,8 +28,7 @@ export default function Predictor(
       const json = await res.json()
       return {
         input_timestamp: timestamp,
-        prediction_timestamp:
-          timestamp + Number(horizon) * interval * 60 * 1000,
+        prediction_timestamp: timestamp + Number(horizon) * interval * 60,
         prediction: Number(json[0][label]),
         confidence: json[0][`${label}_confidence`],
       }
