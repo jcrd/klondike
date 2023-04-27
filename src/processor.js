@@ -52,7 +52,7 @@ function withHLC(indicator) {
   return ({ high, low, close }) => indicator.nextValue(high, low, close)
 }
 
-function indicatorsProcessor(trend, stream, horizon) {
+function indicatorsProcessor({ stream, trend, horizon, label }) {
   const indicators = {
     ema10: {
       nextValue: withClose(new EMA(10)),
@@ -91,7 +91,7 @@ function indicatorsProcessor(trend, stream, horizon) {
   const horizonKlines = newFixedArray(horizon + 1)
   const columns = Object.keys(indicators)
   if (!stream) {
-    columns.push("trend")
+    columns.push(label)
   }
 
   return {
@@ -144,9 +144,19 @@ export default function Processor(opts, stream = false) {
 
   switch (opts.processor) {
     case "indicators:continuous":
-      return indicatorsProcessor(false, stream)
+      return indicatorsProcessor({
+        stream,
+        trend: false,
+        horizon: opts.horizon,
+        label: opts.label,
+      })
     case "indicators:binary":
-      return indicatorsProcessor(true, stream)
+      return indicatorsProcessor({
+        stream,
+        trend: true,
+        horizon: opts.horizon,
+        label: opts.label,
+      })
     case "close":
       return closeProcessor(opts.seconds)
     default:

@@ -1,11 +1,4 @@
-export default function Predictor(
-  url,
-  model,
-  label,
-  horizon,
-  interval,
-  columns
-) {
+export default function Predictor(url, model, { label, horizon }, interval, columns) {
   url = url + `/api/projects/mindsdb/models/${model}/predict`
   const controller = new AbortController()
 

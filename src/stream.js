@@ -30,14 +30,14 @@ function klineWebsocket(symbol, interval, callback) {
 }
 
 export default async function newStream(
-  { symbol, interval, suffix },
+  { symbol, interval, suffix, limit },
   processor,
   callback
 ) {
   const intervalName = String(interval) + suffix
   const recent = {}
 
-  for await (const kline of klines({ symbol, interval, suffix, limit: 60 })) {
+  for await (const kline of klines({ symbol, interval, suffix, limit })) {
     const k = processor.transform(kline)
     if (k !== null) {
       recent.kline = k

@@ -3,9 +3,12 @@
   "klines": {
     "symbol": "BNBUSD",
     "interval": 1,
-    "suffix": "m"
+    "suffix": "m",
+    "limit": 60
   },
   "options": {
-    "processor": "indicators:binary"
+    "processor": "indicators:binary",
+    "label": "trend",
+    "horizon": 6
   }
 }
