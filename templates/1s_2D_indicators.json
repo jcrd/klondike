@@ -9,7 +9,7 @@
   "verify": true,
   "process": true,
   "options": {
-    "processor": "indicators:trend",
+    "processor": "indicators:binary",
     "label": "trend",
     "horizon": 330
   }
