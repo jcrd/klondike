@@ -9,6 +9,6 @@
   "verify": true,
   "process": true,
   "options": {
-    "processor": "indicators"
+    "processor": "indicators:binary"
   }
 }
