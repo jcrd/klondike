@@ -61,12 +61,13 @@ async function streamMode(data, processor, predictor = undefined) {
 }
 
 async function predictMode(data) {
-  const processor = Processor(data.options, true)
+  const horizon = Number(process.env.MINDSDB_HORIZON)
+  const processor = Processor(data.options, true, horizon)
   const predictor = Predictor(
     process.env.MINDSDB_URL,
     process.env.MINDSDB_MODEL,
     process.env.MINDSDB_LABEL,
-    process.env.MINDSDB_HORIZON,
+    horizon,
     data.klines.interval,
     processor.columns
   )

@@ -52,7 +52,7 @@ function withHLC(indicator) {
   return ({ high, low, close }) => indicator.nextValue(high, low, close)
 }
 
-function indicatorsProcessor(trend, stream) {
+function indicatorsProcessor(trend, stream, horizon) {
   const indicators = {
     ema10: {
       nextValue: withClose(new EMA(10)),
@@ -88,7 +88,7 @@ function indicatorsProcessor(trend, stream) {
   }
 
   const priorValues = {}
-  const horizon = newFixedArray(7)
+  const horizonKlines = newFixedArray(horizon + 1)
   const columns = Object.keys(indicators)
   if (!stream) {
     columns.push("trend")
@@ -120,13 +120,13 @@ function indicatorsProcessor(trend, stream) {
       if (stream) {
         return values
       } else {
-        if (!horizon.add(kline)) {
+        if (!horizonKlines.add(kline)) {
           return null
         }
         // The second kline represents round lock (first is at bet time).
-        const start = horizon[1]
+        const start = horizonKlines[1]
         // The last kline represents round close.
-        const end = horizon[horizon.length - 1]
+        const end = horizonKlines[horizonKlines.length - 1]
         return [
           ...values,
           start[KlineKeys.close] < end[KlineKeys.close] ? 1 : -1,

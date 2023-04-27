@@ -28,7 +28,7 @@ export default function Predictor(
       const json = await res.json()
       return {
         input_timestamp: timestamp,
-        prediction_timestamp: timestamp + Number(horizon) * interval * 60,
+        prediction_timestamp: timestamp + horizon * interval * 60,
         prediction: Number(json[0][label]),
         confidence: json[0][`${label}_confidence`],
       }
