@@ -43,9 +43,10 @@ export async function getRecentTimestamp(symbol, interval) {
 
 export default async function* klines({ symbol, interval, suffix, limit }) {
   const [intervalSeconds, intervalName] = newInterval(interval, suffix)
+  const iters = Math.ceil(limit / maxKlineLimit)
   let lastEndTime = 0
 
-  for (let i = 0; i < Math.ceil(limit / maxKlineLimit); i++) {
+  for (let i = 0; i < iters; i++) {
     let lines
     if (i == 0) {
       lines = (
@@ -59,11 +60,13 @@ export default async function* klines({ symbol, interval, suffix, limit }) {
     } else {
       lines = (
         await client.klines(symbol, intervalName, {
-          startTime: lastEndTime + intervalSeconds * 1000,
-          limit: maxKlineLimit,
+          startTime: lastEndTime + 1,
+          limit,
         })
       ).data
     }
+
+    limit -= maxKlineLimit
 
     if (lines.length === 0) {
       continue
