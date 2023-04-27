@@ -43,7 +43,12 @@ async function verify(path, intervalSeconds) {
     last = now
   })
 
-  return new Promise((resolve) => stream.once("close", resolve))
+  return new Promise((resolve) =>
+    stream.once("close", () => {
+      console.log("Verification complete")
+      resolve()
+    })
+  )
 }
 
 async function write(path, args, withBar = true) {
