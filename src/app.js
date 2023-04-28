@@ -29,9 +29,8 @@ function csvMode(config) {
 }
 
 function predictMode(config) {
-  const httpServer = createServer()
-
   const models = {}
+
   config.klines.forEach(async (k) => {
     const server = new WebSocketServer({ noServer: true })
     let websockets = []
@@ -56,12 +55,37 @@ function predictMode(config) {
 
     models[k.options.model] = {
       server,
+      stream,
+      predictor,
       destroy: () => {
         stream.disconnect()
         predictor.abort()
         websockets.forEach((ws) => ws.close())
         server.close()
       },
+    }
+  })
+
+  const httpServer = createServer(async (req, res) => {
+    const { pathname } = parse(req.url)
+    const model = pathname.replace("/", "")
+    if (req.method === "GET") {
+      res.setHeader("Content-Type", "application/json")
+      if (model in models) {
+        const m = models[model]
+        const recent = m.stream.getRecent()
+        if (recent === undefined) {
+          res.writeHead(503)
+          res.end()
+          return
+        }
+        const result = await m.predictor.predict(recent.kline, recent.timestamp)
+        res.writeHead(200)
+        res.end(JSON.stringify(result))
+      } else {
+        res.writeHead(400)
+        res.end()
+      }
     }
   })
 

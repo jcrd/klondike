@@ -35,17 +35,19 @@ export default async function newStream(
   callback
 ) {
   const intervalName = String(interval) + suffix
-  const recent = {}
+  let recent
 
   for await (const kline of klines({ symbol, interval, suffix, limit })) {
     const k = processor.transform(kline)
     if (k !== null) {
-      recent.kline = k
-      recent.timestamp = kline[KlineKeys.timestamp]
+      recent = {
+        kline: k,
+        timestamp: kline[KlineKeys.timestamp],
+      }
     }
   }
 
-  if (recent.kline !== undefined) {
+  if (recent !== undefined) {
     await callback(recent)
   } else {
     logger.error(
@@ -53,10 +55,19 @@ export default async function newStream(
     )
   }
 
-  return klineWebsocket(symbol, intervalName, async (kline) => {
+  const ws = klineWebsocket(symbol, intervalName, async (kline) => {
     const k = processor.transform(kline)
     if (k !== null) {
-      await callback({ kline: k, timestamp: kline[KlineKeys.timestamp] })
+      recent = {
+        kline: k,
+        timestamp: kline[KlineKeys.timestamp],
+      }
+      await callback(recent)
     }
   })
+
+  return {
+    getRecent: () => recent,
+    disconnect: ws.disconnect,
+  }
 }
