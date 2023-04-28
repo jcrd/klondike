@@ -52,8 +52,10 @@ function withHLC(indicator) {
   return ({ high, low, close }) => indicator.nextValue(high, low, close)
 }
 
-function indicatorsProcessor({ stream, trend, horizon, label }) {
-  const indicators = {
+function indicatorsProcessor({ stream, trend, options }) {
+  const { horizon, label, indicators } = options
+
+  const indicatorsMap = {
     ema10: {
       nextValue: withClose(new EMA(10)),
       trend: maTrend,
@@ -97,10 +99,18 @@ function indicatorsProcessor({ stream, trend, horizon, label }) {
     },
   }
 
+  if (indicators) {
+    for (const [name, state] of Object.entries(indicators)) {
+      if (state === false) {
+        delete indicatorsMap[name]
+      }
+    }
+  }
+
   const priorValues = {}
   const horizonKlines = newFixedArray(horizon + 1)
   const columns = []
-  for (const [key, v] of Object.entries(indicators)) {
+  for (const [key, v] of Object.entries(indicatorsMap)) {
     if ("columns" in v) {
       columns.push(...v.columns)
     } else {
@@ -115,7 +125,7 @@ function indicatorsProcessor({ stream, trend, horizon, label }) {
     columns,
     transform: (kline) => {
       const kobj = klineObject(kline)
-      const values = Object.entries(indicators)
+      const values = Object.entries(indicatorsMap)
         .map(([name, indicator]) => {
           const value = indicator.nextValue(kobj)
           const priorValue = priorValues[name]
@@ -155,30 +165,28 @@ function indicatorsProcessor({ stream, trend, horizon, label }) {
   }
 }
 
-export default function Processor(opts, stream = false) {
-  opts = {
+export default function Processor(options, stream = false) {
+  options = {
     seconds: true,
-    ...(opts || {}),
+    ...(options || {}),
   }
 
-  switch (opts.processor) {
+  switch (options.processor) {
     case "indicators:continuous":
       return indicatorsProcessor({
         stream,
         trend: false,
-        horizon: opts.horizon,
-        label: opts.label,
+        options,
       })
     case "indicators:binary":
       return indicatorsProcessor({
         stream,
         trend: true,
-        horizon: opts.horizon,
-        label: opts.label,
+        options,
       })
     case "close":
-      return closeProcessor(opts.seconds)
+      return closeProcessor(options.seconds)
     default:
-      return ohlcProcessor(opts.seconds)
+      return ohlcProcessor(options.seconds)
   }
 }

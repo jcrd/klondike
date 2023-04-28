@@ -7,6 +7,10 @@
       "limit": 172800,
       "options": {
         "processor": "indicators:binary",
+        "indicators": {
+          "roc": false,
+          "stoch": false
+        },
         "label": "trend",
         "horizon": 330
       }
