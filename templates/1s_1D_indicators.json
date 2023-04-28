@@ -1,16 +1,18 @@
 {
-  "klines": {
-    "symbol": "BNBUSD",
-    "interval": 1,
-    "suffix": "s",
-    "limit": 86400
-  },
+  "klines": [
+    {
+      "symbol": "BNBUSD",
+      "interval": 1,
+      "suffix": "s",
+      "limit": 86400,
+      "options": {
+        "processor": "indicators:binary",
+        "label": "trend",
+        "horizon": 330
+      }
+    }
+  ],
   "write": true,
   "verify": true,
-  "process": true,
-  "options": {
-    "processor": "indicators:binary",
-    "label": "trend",
-    "horizon": 330
-  }
+  "process": true
 }

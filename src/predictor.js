@@ -1,15 +1,10 @@
 import { newInterval } from "./utils.js"
 
-export default function Predictor(
-  url,
-  model,
-  { label, horizon },
-  { interval, suffix },
-  columns
-) {
-  url = url + `/api/projects/mindsdb/models/${model}/predict`
+export default function Predictor(url, columns, { interval, suffix, options }) {
+  const { model, label, horizon } = options
   const controller = new AbortController()
   const [intervalSeconds, _] = newInterval(interval, suffix)
+  url = url + `/api/projects/mindsdb/models/${model}/predict`
 
   return {
     predict: async (input, timestamp) => {

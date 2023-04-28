@@ -1,5 +1,7 @@
-import fs from "fs"
+import { createServer } from "http"
+import { parse } from "url"
 import { WebSocketServer } from "ws"
+import fs from "fs"
 
 import newCSV from "./csv.js"
 import newStream from "./stream.js"
@@ -11,82 +13,95 @@ dotenv.config()
 
 const path = process.argv[2] ? process.argv[2] : "rc.json"
 
-async function csvMode(data) {
-  const csv = newCSV(data.klines)
-
-  if (data.write) {
-    await csv.write()
-  }
-  if (data.verify) {
-    await csv.verify()
-  }
-  if (data.process) {
-    await csv.process(Processor(data.options))
-  }
+function csvMode(config) {
+  config.klines.forEach(async (k) => {
+    const csv = newCSV(k)
+    if (config.write) {
+      await csv.write()
+    }
+    if (config.verify) {
+      await csv.verify()
+    }
+    if (config.process) {
+      await csv.process(Processor(k.options))
+    }
+  })
 }
 
-async function streamMode(data, processor, predictor = undefined) {
-  const port = process.env.PORT || 8080
-  const wss = new WebSocketServer({ port })
-  let websockets = []
+function predictMode(config) {
+  const httpServer = createServer()
 
-  wss.on("connection", (ws) => {
-    websockets.push(ws)
-    ws.on("close", () => {
-      websockets = websockets.filter((s) => s !== ws)
+  const models = {}
+  config.klines.forEach(async (k) => {
+    const server = new WebSocketServer({ noServer: true })
+    let websockets = []
+
+    server.on("connection", (ws) => {
+      websockets.push(ws)
+      ws.on("close", () => {
+        websockets = websockets.filter((s) => s !== ws)
+      })
+    })
+
+    const processor = Processor(k.options, true)
+    const predictor = Predictor(process.env.MINDSDB_URL, processor.columns, k)
+    const stream = await newStream(
+      k,
+      processor,
+      async ({ kline, timestamp }) => {
+        const result = await predictor.predict(kline, timestamp)
+        websockets.forEach((ws) => ws.send(JSON.stringify(result)))
+      }
+    )
+
+    models[k.options.model] = {
+      server,
+      destroy: () => {
+        stream.disconnect()
+        predictor.abort()
+        websockets.forEach((ws) => ws.close())
+        server.close()
+      },
+    }
+  })
+
+  httpServer.on("upgrade", (request, socket, head) => {
+    const { pathname } = parse(request.url)
+    const model = pathname.replace("/", "")
+
+    if (model in models) {
+      const s = models[model].server
+      s.handleUpgrade(request, socket, head, (ws) => {
+        s.emit("connection", ws, request)
+      })
+    } else {
+      socket.destroy()
+    }
+  })
+
+  process.on("SIGINT", () => {
+    Object.values(models).forEach((m) => m.destroy())
+    httpServer.close((err) => {
+      process.exit(err ? 1 : 0)
     })
   })
 
-  console.log(`Streaming on port: ${port}`)
-
-  const transform =
-    predictor === undefined ? async (k, ts) => [ts, ...k] : predictor.predict
-
-  const stream = await newStream(
-    data.klines,
-    processor,
-    async ({ kline, timestamp }) => {
-      const result = await transform(kline, timestamp)
-      websockets.forEach((ws) => ws.send(JSON.stringify(result)))
-    }
-  )
-
-  process.on("SIGINT", () => {
-    predictor.abort()
-    stream.disconnect()
-    websockets.forEach((ws) => ws.close())
-    wss.close()
-    process.exit(0)
+  httpServer.listen(process.env.PORT || 8080, () => {
+    console.log(`Running server on port: ${httpServer.address().port}`)
   })
-}
-
-async function predictMode(data) {
-  const processor = Processor(data.options, true)
-  const predictor = Predictor(
-    process.env.MINDSDB_URL,
-    process.env.MINDSDB_MODEL,
-    data.options,
-    data.klines,
-    processor.columns
-  )
-  await streamMode(data, processor, predictor)
 }
 
 if (fs.existsSync(path)) {
   console.log(`rc file: using ${path}`)
-  const data = JSON.parse(fs.readFileSync(path))
-  switch (data.mode) {
+  const config = JSON.parse(fs.readFileSync(path))
+  switch (config.mode) {
     case "predict":
       console.log("Running in predict mode")
-      await predictMode(data)
-      break
-    case "stream":
-      console.log("Running in stream mode")
-      await streamMode(data, Processor(data.options, true))
+      predictMode(config)
       break
     default:
       console.log("Running in csv mode")
-      await csvMode(data)
+      csvMode(config)
   }
 } else {
   console.log(`rc file: ${path} not found`)
