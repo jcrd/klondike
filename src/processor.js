@@ -83,7 +83,10 @@ function indicatorsProcessor({ stream, trend, horizon, label }) {
         const i = withHLC(new Stochastic())
         return (v) => {
           const r = i(v)
-          return r === undefined ? undefined : [r.k, r.d]
+          if (r === undefined || r.k === undefined || r.d === undefined) {
+            return undefined
+          }
+          return [r.k, r.d]
         }
       })(),
       trend: (() => {
