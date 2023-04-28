@@ -79,17 +79,31 @@ function indicatorsProcessor({ stream, trend, horizon, label }) {
       trend: oscillatorTrend(200, -200),
     },
     stoch: {
-      nextValue: withHLC(new Stochastic()),
+      nextValue: (() => {
+        const i = withHLC(new Stochastic())
+        return (v) => {
+          const r = i(v)
+          return r === undefined ? undefined : [r.k, r.d]
+        }
+      })(),
       trend: (() => {
         const t = oscillatorTrend(80, 20)
-        return ({ value }) => t({ value: value.k, priorValue: value.d })
+        return ({ value }) => t({ value: value[0], priorValue: value[1] })
       })(),
+      columns: ["stochK", "stochD"],
     },
   }
 
   const priorValues = {}
   const horizonKlines = newFixedArray(horizon + 1)
-  const columns = Object.keys(indicators)
+  const columns = []
+  for (const [key, v] of Object.entries(indicators)) {
+    if ("columns" in v) {
+      columns.push(...v.columns)
+    } else {
+      columns.push(key)
+    }
+  }
   if (!stream) {
     columns.push(label)
   }
@@ -98,20 +112,22 @@ function indicatorsProcessor({ stream, trend, horizon, label }) {
     columns,
     transform: (kline) => {
       const kobj = klineObject(kline)
-      const values = Object.entries(indicators).map(([name, indicator]) => {
-        const value = indicator.nextValue(kobj)
-        const priorValue = priorValues[name]
+      const values = Object.entries(indicators)
+        .map(([name, indicator]) => {
+          const value = indicator.nextValue(kobj)
+          const priorValue = priorValues[name]
 
-        if (value === undefined) {
-          return undefined
-        }
+          if (value === undefined) {
+            return undefined
+          }
 
-        priorValues[name] = value
+          priorValues[name] = value
 
-        return trend
-          ? indicator.trend({ close: kobj.close, value, priorValue })
-          : value
-      })
+          return trend
+            ? indicator.trend({ close: kobj.close, value, priorValue })
+            : value
+        })
+        .flat()
 
       if (values.filter((v) => v === undefined).length > 0) {
         return null
