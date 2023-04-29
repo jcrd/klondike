@@ -34,7 +34,7 @@ export default function newServer(url, port, config) {
       }
     )
 
-    models[k.options.model] = {
+    const m = {
       server,
       stream,
       predictor,
@@ -44,6 +44,11 @@ export default function newServer(url, port, config) {
         websockets.forEach((ws) => ws.close())
         server.close()
       },
+    }
+
+    models[k.options.model] = m
+    if ("alias" in k.options) {
+      models[k.options.alias] = m
     }
   })
 
