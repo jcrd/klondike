@@ -7,12 +7,14 @@ import klines, { parseKline, KlineKeys } from "./klines.js"
 const logger = new Console({ stdout: process.stdout, stderr: process.stderr })
 
 function klineWebsocket(symbol, interval, callback) {
+  let moment
   const callbacks = {
     message: async (data) => {
       data = JSON.parse(data)
       const k = data.k
+      moment = parseKline([k.t, k.o, k.h, k.l, k.c])
       if (k.x) {
-        await callback(parseKline([k.t, k.o, k.h, k.l, k.c]))
+        await callback(moment)
       }
     },
   }
@@ -25,6 +27,7 @@ function klineWebsocket(symbol, interval, callback) {
   client.kline(symbol.toLowerCase(), interval)
 
   return {
+    getMoment: () => moment,
     disconnect: () => client.disconnect(),
   }
 }
@@ -36,8 +39,10 @@ export default async function newStream(
 ) {
   const intervalName = String(interval) + suffix
   let recent
+  let recentKline
 
   for await (const kline of klines({ symbol, interval, suffix, limit })) {
+    recentKline = kline
     const k = processor.transform(kline)
     if (k !== null) {
       recent = {
@@ -56,6 +61,7 @@ export default async function newStream(
   }
 
   const ws = klineWebsocket(symbol, intervalName, async (kline) => {
+    recentKline = kline
     const k = processor.transform(kline)
     if (k !== null) {
       recent = {
@@ -68,6 +74,22 @@ export default async function newStream(
 
   return {
     getRecent: () => recent,
+    getMoment: () => {
+      const kline = ws.getMoment() || recentKline
+      if (kline === undefined) {
+        return undefined
+      }
+
+      const k = processor.transform(kline, true)
+      if (k === null) {
+        return undefined
+      }
+
+      return {
+        kline: k,
+        timestamp: kline[KlineKeys.timestamp],
+      }
+    },
     disconnect: ws.disconnect,
   }
 }

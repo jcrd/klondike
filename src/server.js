@@ -1,10 +1,13 @@
-import { createServer } from "http"
 import { parse } from "url"
+
 import { WebSocketServer } from "ws"
+import express from "express"
 
 import newStream from "./stream.js"
 import Processor from "./processor.js"
 import Predictor from "./predictor.js"
+
+const wsRoute = "/ws/"
 
 export default function newServer(url, port, config) {
   const models = {}
@@ -44,32 +47,40 @@ export default function newServer(url, port, config) {
     }
   })
 
-  const httpServer = createServer(async (req, res) => {
-    const { pathname } = parse(req.url)
-    const model = pathname.replace("/", "")
-    if (req.method === "GET") {
-      res.setHeader("Content-Type", "application/json")
-      if (model in models) {
-        const m = models[model]
-        const recent = m.stream.getRecent()
-        if (recent === undefined) {
-          res.writeHead(503)
-          res.end()
-          return
-        }
-        const result = await m.predictor.predict(recent.kline, recent.timestamp)
-        res.writeHead(200)
-        res.end(JSON.stringify(result))
-      } else {
-        res.writeHead(400)
-        res.end()
+  const app = express()
+
+  const httpServer = app.listen(port, () => {
+    console.log(`Running server on port: ${httpServer.address().port}`)
+  })
+
+  app.get("/predict/:model", async (req, res) => {
+    const model = req.params.model
+    if (model in models) {
+      const m = models[model]
+      const v =
+        req.query.moment === "true"
+          ? m.stream.getMoment()
+          : m.stream.getRecent()
+      if (v === undefined) {
+        res.status(503)
+        res.send()
+        return
       }
+      const result = await m.predictor.predict(v.kline, v.timestamp)
+      res.status(200)
+      res.json(result)
+    } else {
+      res.status(400)
+      res.send()
     }
   })
 
   httpServer.on("upgrade", (request, socket, head) => {
     const { pathname } = parse(request.url)
-    const model = pathname.replace("/", "")
+    if (!pathname.startsWith(wsRoute)) {
+      return
+    }
+    const model = pathname.replace(wsRoute, "")
 
     if (model in models) {
       const s = models[model].server
@@ -86,9 +97,5 @@ export default function newServer(url, port, config) {
     httpServer.close((err) => {
       process.exit(err ? 1 : 0)
     })
-  })
-
-  httpServer.listen(port, () => {
-    console.log(`Running server on port: ${httpServer.address().port}`)
   })
 }

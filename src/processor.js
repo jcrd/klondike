@@ -1,6 +1,7 @@
 import { CCI, EMA, Stochastic, SMA, WMA, ROC, RSI } from "@debut/indicators"
 
 import { KlineKeys, klineObject } from "./klines.js"
+import { Indicator, handlers } from "./indicator.js"
 import { newFixedArray } from "./utils.js"
 
 const id = {
@@ -28,75 +29,47 @@ function closeProcessor(seconds) {
   }
 }
 
-function maTrend({ close, value }) {
-  return close < value ? -1 : 1
-}
-
-function oscillatorTrend(max, min) {
-  return ({ value, priorValue }) => {
-    if (value > max) {
-      return -1
-    }
-    if (value < min) {
-      return 1
-    }
-    return value > priorValue ? 1 : -1
-  }
-}
-
-function withClose(indicator) {
-  return ({ close }) => indicator.nextValue(close)
-}
-
-function withHLC(indicator) {
-  return ({ high, low, close }) => indicator.nextValue(high, low, close)
-}
-
 function indicatorsProcessor({ stream, trend, options }) {
   const { horizon, label, indicators } = options
 
   const indicatorsMap = {
-    ema10: {
-      nextValue: withClose(new EMA(10)),
-      trend: maTrend,
-    },
-    sma10: {
-      nextValue: withClose(new SMA(10)),
-      trend: maTrend,
-    },
-    wma10: {
-      nextValue: withClose(new WMA(10)),
-      trend: maTrend,
-    },
-    rsi: {
-      nextValue: withClose(new RSI()),
-      trend: oscillatorTrend(70, 30),
-    },
-    roc: {
-      nextValue: withClose(new ROC()),
+    ema10: new Indicator(new EMA(10), {
+      input: handlers.input.c,
+      trend: handlers.trend.ma,
+    }),
+    sma10: new Indicator(new SMA(10), {
+      input: handlers.input.c,
+      trend: handlers.trend.ma,
+    }),
+    rsi: new Indicator(new RSI(), {
+      input: handlers.input.c,
+      trend: handlers.trend.oscillator(70, 30),
+    }),
+    roc: new Indicator(new ROC(), {
+      input: handlers.input.c,
       trend: ({ value }) => (value < 0 ? -1 : 1),
-    },
-    cci: {
-      nextValue: withHLC(new CCI()),
-      trend: oscillatorTrend(200, -200),
-    },
-    stoch: {
-      nextValue: (() => {
-        const i = withHLC(new Stochastic())
-        return (v) => {
-          const r = i(v)
-          if (r === undefined || r.k === undefined || r.d === undefined) {
+    }),
+    cci: new Indicator(new CCI(), {
+      input: handlers.input.hlc,
+      trend: handlers.trend.oscillator(200, -200),
+    }),
+    stoch: new Indicator(
+      new Stochastic(),
+      {
+        input: handlers.input.hlc,
+        output: (v) => {
+          if (v === undefined || v.k === undefined || v.d === undefined) {
             return undefined
           }
-          return [r.k, r.d]
-        }
-      })(),
-      trend: (() => {
-        const t = oscillatorTrend(80, 20)
-        return ({ value }) => t({ value: value[0], priorValue: value[1] })
-      })(),
-      columns: ["stochK", "stochD"],
-    },
+          return [v.k, v.d]
+        },
+        trend: (() => {
+          const h = handlers.trend.oscillator(80, 20)
+          return ({ value }) => h({ value: value[0], priorValue: value[1] })
+        })(),
+      },
+      ["stochK", "stochD"]
+    ),
   }
 
   if (indicators) {
@@ -111,7 +84,7 @@ function indicatorsProcessor({ stream, trend, options }) {
   const horizonKlines = newFixedArray(horizon + 1)
   const columns = []
   for (const [key, v] of Object.entries(indicatorsMap)) {
-    if ("columns" in v) {
+    if (v.columns) {
       columns.push(...v.columns)
     } else {
       columns.push(key)
@@ -123,11 +96,11 @@ function indicatorsProcessor({ stream, trend, options }) {
 
   return {
     columns,
-    transform: (kline) => {
+    transform: (kline, moment = false) => {
       const kobj = klineObject(kline)
       const values = Object.entries(indicatorsMap)
         .map(([name, indicator]) => {
-          const value = indicator.nextValue(kobj)
+          const value = indicator.value(kobj, moment)
           const priorValue = priorValues[name]
 
           if (value === undefined) {
