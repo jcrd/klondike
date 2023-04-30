@@ -2,6 +2,7 @@ import fs from "fs"
 
 import newCSV from "./csv.js"
 import newServer from "./server.js"
+import { Streams } from "./stream.js"
 import Processor from "./processor.js"
 
 import * as dotenv from "dotenv"
@@ -30,7 +31,12 @@ if (fs.existsSync(path)) {
   switch (config.mode) {
     case "predict":
       console.log("Running in predict mode")
-      newServer(process.env.MINDSDB_URL, process.env.PORT || 8080, config)
+      await newServer(
+        new Streams(),
+        process.env.MINDSDB_URL,
+        process.env.PORT || 8080,
+        config
+      )
       break
     default:
       console.log("Running in csv mode")

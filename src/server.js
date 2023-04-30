@@ -3,16 +3,15 @@ import { parse } from "url"
 import { WebSocketServer } from "ws"
 import express from "express"
 
-import newStream from "./stream.js"
 import Processor from "./processor.js"
 import Predictor from "./predictor.js"
 
 const wsRoute = "/ws/"
 
-export default function newServer(url, port, config) {
+export default async function newServer(streams, predictUrl, port, config) {
   const models = {}
 
-  config.klines.forEach(async (k) => {
+  const Server = async (k) => {
     const server = new WebSocketServer({ noServer: true })
     let websockets = []
 
@@ -24,22 +23,21 @@ export default function newServer(url, port, config) {
     })
 
     const processor = Processor(k.options, true)
-    const predictor = Predictor(url, processor.columns, k)
-    const stream = await newStream(
-      k,
-      processor,
-      async ({ kline, timestamp }) => {
-        const result = await predictor.predict(kline, timestamp)
-        websockets.forEach((ws) => ws.send(JSON.stringify(result)))
-      }
-    )
+    const predictor = Predictor(predictUrl, processor.columns, k)
+
+    const callback = async ({ kline, timestamp }) => {
+      const result = await predictor.predict(kline, timestamp)
+      websockets.forEach((ws) => ws.send(JSON.stringify(result)))
+    }
+
+    const stream = await streams.subscribe(k, processor, callback)
 
     const m = {
       server,
       stream,
       predictor,
       destroy: () => {
-        stream.disconnect()
+        streams.unsubscribe(k, callback)
         predictor.abort()
         websockets.forEach((ws) => ws.close())
         server.close()
@@ -50,7 +48,11 @@ export default function newServer(url, port, config) {
     if ("alias" in k.options) {
       models[k.options.alias] = m
     }
-  })
+  }
+
+  for (const k of config.klines) {
+    await Server(k)
+  }
 
   const app = express()
 
