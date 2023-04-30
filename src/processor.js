@@ -30,7 +30,7 @@ function closeProcessor(seconds) {
 }
 
 function indicatorsProcessor({ stream, trend, options }) {
-  const { horizon, label, indicators } = options
+  const { horizon, label, indicators, ohlc } = options
 
   const indicatorsMap = {
     ema10: new Indicator(new EMA(10), {
@@ -90,6 +90,9 @@ function indicatorsProcessor({ stream, trend, options }) {
       columns.push(key)
     }
   }
+  if (ohlc) {
+    columns.push("open", "high", "low", "close")
+  }
   if (!stream) {
     columns.push(label)
   }
@@ -117,6 +120,10 @@ function indicatorsProcessor({ stream, trend, options }) {
 
       if (values.filter((v) => v === undefined).length > 0) {
         return null
+      }
+
+      if (ohlc) {
+        values.push(kobj.open, kobj.high, kobj.low, kobj.close)
       }
 
       if (stream) {
