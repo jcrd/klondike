@@ -1,4 +1,4 @@
-import { CCI, EMA, Stochastic, SMA, WMA, ROC, RSI } from "@debut/indicators"
+import { CCI, EMA, Stochastic, SMA, ROC, RSI } from "@debut/indicators"
 
 import { KlineKeys, klineObject } from "./klines.js"
 import { Indicator, handlers } from "./indicator.js"
