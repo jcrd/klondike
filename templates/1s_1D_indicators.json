@@ -6,7 +6,8 @@
       "suffix": "s",
       "limit": 86400,
       "options": {
-        "processor": "indicators:binary",
+        "processor": "indicators",
+        "binaryIndicators": true,
         "indicators": {
           "roc": false,
           "stoch": false

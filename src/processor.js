@@ -29,9 +29,10 @@ function closeProcessor(seconds) {
   }
 }
 
-function indicatorsProcessor({ stream, trend, options }) {
-  const { horizon, label, indicators, ohlc } = options
-
+function indicatorsProcessor(
+  { horizon, label, indicators, ohlc, binaryIndicators, binaryPrediction },
+  stream
+) {
   const indicatorsMap = {
     ema10: new Indicator(new EMA(10), {
       input: handlers.input.c,
@@ -112,7 +113,7 @@ function indicatorsProcessor({ stream, trend, options }) {
 
           priorValues[name] = value
 
-          return trend
+          return binaryIndicators
             ? indicator.trend({ close: kobj.close, value, priorValue })
             : value
         })
@@ -135,9 +136,11 @@ function indicatorsProcessor({ stream, trend, options }) {
         }
         return [
           ...head.values,
-          horizonKlines[0].kline[KlineKeys.close] < kline[KlineKeys.close]
-            ? 1
-            : -1,
+          binaryPrediction
+            ? horizonKlines[0].kline[KlineKeys.close] < kline[KlineKeys.close]
+              ? 1
+              : -1
+            : kline[KlineKeys.close],
         ]
       }
     },
@@ -151,18 +154,8 @@ export default function Processor(options, stream = false) {
   }
 
   switch (options.processor) {
-    case "indicators:continuous":
-      return indicatorsProcessor({
-        stream,
-        trend: false,
-        options,
-      })
-    case "indicators:binary":
-      return indicatorsProcessor({
-        stream,
-        trend: true,
-        options,
-      })
+    case "indicators":
+      return indicatorsProcessor(options, stream)
     case "close":
       return closeProcessor(options.seconds)
     default:

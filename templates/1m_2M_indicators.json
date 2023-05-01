@@ -6,7 +6,8 @@
       "suffix": "m",
       "limit": 86400,
       "options": {
-        "processor": "indicators:binary",
+        "processor": "indicators",
+        "binaryIndicators": true,
         "label": "trend",
         "horizon": 6
       }
