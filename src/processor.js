@@ -81,7 +81,7 @@ function indicatorsProcessor({ stream, trend, options }) {
   }
 
   const priorValues = {}
-  const horizonKlines = newFixedArray(horizon + 1)
+  const horizonKlines = newFixedArray(horizon)
   const columns = []
   for (const [key, v] of Object.entries(indicatorsMap)) {
     if (v.columns) {
@@ -129,16 +129,15 @@ function indicatorsProcessor({ stream, trend, options }) {
       if (stream) {
         return values
       } else {
-        if (!horizonKlines.add(kline)) {
+        const head = horizonKlines.add({ kline, values })
+        if (head === undefined) {
           return null
         }
-        // The second kline represents round lock (first is at bet time).
-        const start = horizonKlines[1]
-        // The last kline represents round close.
-        const end = horizonKlines[horizonKlines.length - 1]
         return [
-          ...values,
-          start[KlineKeys.close] < end[KlineKeys.close] ? 1 : -1,
+          ...head.values,
+          horizonKlines[0].kline[KlineKeys.close] < kline[KlineKeys.close]
+            ? 1
+            : -1,
         ]
       }
     },
