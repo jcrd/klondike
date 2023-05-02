@@ -18,6 +18,10 @@ export function parseKline(k) {
   return [Number(k[0]), ...k.slice(1, 5).map((s) => parseFloat(s))]
 }
 
+export function klineName(k) {
+  return [k.symbol, k.interval, k.suffix].join("")
+}
+
 export function klineObject(k) {
   const obj = {}
   const keys = Object.keys(KlineKeys)
@@ -27,55 +31,68 @@ export function klineObject(k) {
   return obj
 }
 
-export async function getKline(symbol, interval, timestamp = undefined) {
+export async function getKlines(
+  symbol,
+  interval,
+  limit = 1,
+  timestamp = undefined
+) {
   const args = {
-    limit: 1,
+    limit,
   }
   if (timestamp) {
     args.endTime = timestamp
   }
-  return (await client.klines(symbol, interval, args)).data[0]
+  const data = (await client.klines(symbol, interval, args)).data
+  if (limit === 1) {
+    return parseKline(data[0])
+  }
+  return data.map((d) => parseKline(d))
 }
 
 export async function getRecentTimestamp(symbol, interval) {
-  return (await getKline(symbol, interval))[0]
+  return (await getKlines(symbol, interval))[0]
 }
 
-export default async function* klines({ symbol, interval, suffix, limit }) {
+export default function klines({ symbol, interval, suffix, limit }) {
   const [intervalSeconds, intervalName] = newInterval(interval, suffix)
   const iters = Math.ceil(limit / maxKlineLimit)
   let lastEndTime = 0
 
-  for (let i = 0; i < iters; i++) {
-    let lines
-    if (i == 0) {
-      lines = (
-        await client.klines(symbol, intervalName, {
-          startTime:
-            (await getRecentTimestamp(symbol, intervalName)) -
-            intervalSeconds * (limit - 1) * 1000,
-          limit: maxKlineLimit,
-        })
-      ).data
-    } else {
-      lines = (
-        await client.klines(symbol, intervalName, {
-          startTime: lastEndTime + 1,
-          limit,
-        })
-      ).data
-    }
+  return {
+    run: async function* () {
+      for (let i = 0; i < iters; i++) {
+        let lines
+        if (i == 0) {
+          lines = (
+            await client.klines(symbol, intervalName, {
+              startTime:
+                (await getRecentTimestamp(symbol, intervalName)) -
+                intervalSeconds * (limit - 1) * 1000,
+              limit: maxKlineLimit,
+            })
+          ).data
+        } else {
+          lines = (
+            await client.klines(symbol, intervalName, {
+              startTime: lastEndTime + 1,
+              limit,
+            })
+          ).data
+        }
 
-    limit -= maxKlineLimit
+        limit -= maxKlineLimit
 
-    if (lines.length === 0) {
-      continue
-    }
+        if (lines.length === 0) {
+          continue
+        }
 
-    lastEndTime = lines[lines.length - 1][0]
+        lastEndTime = lines[lines.length - 1][0]
 
-    for (const k of lines) {
-      yield parseKline(k)
-    }
+        for (const k of lines) {
+          yield parseKline(k)
+        }
+      }
+    },
   }
 }

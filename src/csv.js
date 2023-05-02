@@ -51,16 +51,16 @@ async function verify(path, intervalSeconds) {
   )
 }
 
-async function write(path, args, withBar = true) {
-  const data = csv.stringify({ header: true, columns: Object.keys(KlineKeys) })
+export async function write(path, generator, columns, limit, withBar = true) {
+  const data = csv.stringify({ header: true, columns })
   const bar = new progress.SingleBar()
 
   if (withBar) {
-    bar.start(args.limit, 0)
+    bar.start(limit, 0)
   }
 
-  for await (const kline of klines(args)) {
-    data.write(kline)
+  for await (const item of generator()) {
+    data.write(item)
     bar.increment()
   }
 
@@ -79,14 +79,23 @@ async function write(path, args, withBar = true) {
   })
 }
 
-export default function newCSV(args, datadir = "data") {
-  const path = `${datadir}/${args.symbol}_${args.interval}${args.suffix}_${args.limit}`
+export default function newCSV(klineConfig, datadir = "data") {
+  const path = `${datadir}/${klineConfig.symbol}_${klineConfig.interval}${klineConfig.suffix}_${klineConfig.limit}`
   const pathExt = path + ".csv"
-  const [intervalSeconds, _] = newInterval(args.interval, args.suffix)
+  const [intervalSeconds, _] = newInterval(
+    klineConfig.interval,
+    klineConfig.suffix
+  )
 
   return {
     path: pathExt,
-    write: async () => write(pathExt, args),
+    write: async () =>
+      write(
+        pathExt,
+        klines(klineConfig).run,
+        Object.keys(KlineKeys),
+        klineConfig.limit
+      ),
     verify: async () => verify(pathExt, intervalSeconds),
     process: async (p) => process(path, p),
   }

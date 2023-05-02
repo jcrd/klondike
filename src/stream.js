@@ -2,13 +2,13 @@ import { Console } from "console"
 
 import { WebsocketStream } from "@binance/connector"
 
-import klines, { parseKline, KlineKeys } from "./klines.js"
+import klines, { parseKline, klineName, KlineKeys } from "./klines.js"
 
 const logger = new Console({ stdout: process.stdout, stderr: process.stderr })
 
 const intervalName = (i, s) => String(i) + s
 
-function processMoment(processor, s, m) {
+export function processMoment(processor, s, m) {
   if (s === undefined || m === undefined) {
     return undefined
   }
@@ -67,7 +67,7 @@ async function newStream(
   let recent
   let recentKline
 
-  for await (const kline of klines({ symbol, interval, suffix, limit })) {
+  for await (const kline of klines({ symbol, interval, suffix, limit }).run()) {
     recentKline = kline
     const k = processor.transform(kline)
     if (k !== null) {
@@ -113,7 +113,7 @@ export class Streams {
   }
 
   async subscribe(k, processor, callback) {
-    const name = [k.symbol, k.interval, k.suffix].join("")
+    const name = klineName(k)
     if (!(name in this.streams)) {
       this.streams[name] = {
         callbacks: [],
@@ -144,7 +144,7 @@ export class Streams {
   }
 
   unsubscribe(k, callback) {
-    const name = [k.symbol, k.interval, k.suffix].join("")
+    const name = klineName(k)
     if (!(name in this.streams)) {
       return
     }

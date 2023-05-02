@@ -6,12 +6,13 @@ describe("klines", () => {
   it("should generate 1s klines with sequential timestamps", async () => {
     let last = 0
     let count = 0
-    for await (const kline of klines({
+    const ks = klines({
       symbol: "BNBUSD",
       interval: 1,
       suffix: "s",
       limit: 1001,
-    })) {
+    })
+    for await (const kline of ks.run()) {
       const now = kline[0]
       if (last > 0) {
         assert.equal(now, last + 1 * 1000)
@@ -27,12 +28,13 @@ describe("klines", () => {
   it("should generate 1m klines with sequential timestamps", async () => {
     let last = 0
     let count = 0
-    for await (const kline of klines({
+    const ks = klines({
       symbol: "BNBUSD",
       interval: 1,
       suffix: "m",
       limit: 1001,
-    })) {
+    })
+    for await (const kline of ks.run()) {
       const now = kline[0]
       if (last > 0) {
         assert.equal(now, last + 60 * 1000)
@@ -46,12 +48,13 @@ describe("klines", () => {
   it("should generate 5m klines with sequential timestamps", async () => {
     let last = 0
     let count = 0
-    for await (const kline of klines({
+    const ks = klines({
       symbol: "BNBUSD",
       interval: 5,
       suffix: "m",
       limit: 1001,
-    })) {
+    })
+    for await (const kline of ks.run()) {
       const now = kline[0]
       if (last > 0) {
         assert.equal(now, last + 60 * 5 * 1000)
