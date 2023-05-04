@@ -32,7 +32,7 @@ export async function getKline(symbol, interval, timestamp = undefined) {
     limit: 1,
   }
   if (timestamp) {
-    args.startTime = timestamp
+    args.endTime = timestamp
   }
   return (await client.klines(symbol, interval, args)).data[0]
 }
