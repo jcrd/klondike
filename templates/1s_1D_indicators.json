@@ -2,8 +2,7 @@
   "klines": [
     {
       "symbol": "BNBUSD",
-      "interval": 1,
-      "suffix": "s",
+      "interval": "1m",
       "limit": 86400,
       "options": {
         "processor": "indicators",

@@ -1,9 +1,9 @@
-import { newInterval } from "./utils.js"
+import { parseIntervalSeconds } from "binoc"
 
-export default function Predictor(url, columns, { interval, suffix, options }) {
+export default function Predictor(url, columns, { interval, options }) {
   const { model, label, horizon } = options
   const controller = new AbortController()
-  const [intervalSeconds, _] = newInterval(interval, suffix)
+  const intervalSeconds = parseIntervalSeconds(interval)
   url = url + `/api/projects/mindsdb/models/${model}/predict`
 
   return {

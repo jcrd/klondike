@@ -4,12 +4,12 @@ import * as csv from "csv"
 
 import * as dotenv from "dotenv"
 
+import { Source } from "binoc"
+
 import { write as writeCSV } from "./csv.js"
-import { getKlines } from "./klines.js"
 import Predictor from "./predictor.js"
 import Processor from "./processor.js"
 import { processMoment } from "./stream.js"
-import { newInterval } from "./utils.js"
 
 dotenv.config()
 
@@ -49,8 +49,7 @@ async function* generator(
   klineConfig,
   beforeLockSeconds
 ) {
-  const { symbol, interval, suffix, limit, options } = klineConfig
-  const [_, intervalName] = newInterval(interval, suffix)
+  const { symbol, interval, limit, options } = klineConfig
   const processor = Processor(options, true)
   const predictor = Predictor(predictUrl, processor.columns, klineConfig)
   const rounds = await getRandomRows(
@@ -60,13 +59,18 @@ async function* generator(
     minRow,
     maxRow
   )
+  const source = new Source()
 
   for (const r of rounds) {
-    const timestamp = (r.lockTimestamp - beforeLockSeconds) * 1000
-    const klines = await getKlines(symbol, intervalName, limit, timestamp)
+    const endTime = (r.lockTimestamp - beforeLockSeconds) * 1000
 
     let last
-    for (const kline of klines) {
+    for await (const kline of source.klines({
+      symbol,
+      interval,
+      limit,
+      endTime,
+    })) {
       const k = processor.transform(kline)
       if (k !== null) {
         last = k
@@ -77,7 +81,7 @@ async function* generator(
       return
     }
 
-    const s = await getKlines(symbol, "1s", 1, timestamp)
+    const s = await source.getKlines(symbol, "1s", { endTime })
     const m = processMoment(processor, s, last)
     const p = await predictor.predict(m.kline, m.timestamp)
 

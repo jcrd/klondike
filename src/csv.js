@@ -3,8 +3,7 @@ import fs from "fs"
 import * as csv from "csv"
 import progress from "cli-progress"
 
-import klines, { KlineKeys, parseKline } from "./klines.js"
-import { newInterval } from "./utils.js"
+import { Source, KlineKeys, parseKlineArray, parseIntervalSeconds } from "binoc"
 
 async function process(path, processor) {
   const ppath = path + "-processed.csv"
@@ -12,7 +11,7 @@ async function process(path, processor) {
 
   fs.createReadStream(path + ".csv")
     .pipe(csv.parse({ from_line: 2 }))
-    .pipe(csv.transform((kline) => processor.transform(parseKline(kline))))
+    .pipe(csv.transform((kline) => processor.transform(parseKlineArray(kline))))
     .pipe(
       csv.stringify({
         header: true,
@@ -34,7 +33,7 @@ async function verify(path, intervalSeconds) {
   const stream = fs.createReadStream(path)
 
   stream.pipe(csv.parse({ from_line: 2 })).on("data", (kline) => {
-    kline = parseKline(kline)
+    kline = parseKlineArray(kline)
     const now = kline[0]
     const expect = last + intervalSeconds * 1000
     if (last > 0 && now !== expect) {
@@ -59,7 +58,7 @@ export async function write(path, generator, columns, limit, withBar = true) {
     bar.start(limit, 0)
   }
 
-  for await (const item of generator()) {
+  for await (const item of generator) {
     data.write(item)
     bar.increment()
   }
@@ -79,22 +78,20 @@ export async function write(path, generator, columns, limit, withBar = true) {
   })
 }
 
-export default function newCSV(klineConfig, datadir = "data") {
-  const path = `${datadir}/${klineConfig.symbol}_${klineConfig.interval}${klineConfig.suffix}_${klineConfig.limit}`
+export default function newCSV({ symbol, interval, limit }, datadir = "data") {
+  const path = `${datadir}/${symbol}_${interval}_${limit}`
   const pathExt = path + ".csv"
-  const [intervalSeconds, _] = newInterval(
-    klineConfig.interval,
-    klineConfig.suffix
-  )
+  const intervalSeconds = parseIntervalSeconds(interval)
+  const source = new Source()
 
   return {
     path: pathExt,
     write: async () =>
       write(
         pathExt,
-        klines(klineConfig).run,
-        Object.keys(KlineKeys),
-        klineConfig.limit
+        source.klines({ symbol, interval, limit }),
+        KlineKeys,
+        limit
       ),
     verify: async () => verify(pathExt, intervalSeconds),
     process: async (p) => process(path, p),

@@ -1,6 +1,7 @@
 import { CCI, EMA, Stochastic, SMA, ROC, RSI } from "@debut/indicators"
 
-import { KlineKeys, klineObject } from "./klines.js"
+import { KlineKeys } from "binoc"
+
 import { Indicator, handlers } from "./indicator.js"
 import { newFixedArray } from "./utils.js"
 
@@ -9,7 +10,7 @@ const id = {
 }
 
 function ohlcProcessor(seconds) {
-  const columns = ["id", ...Object.keys(KlineKeys)]
+  const columns = ["id", ...KlineKeys]
   return {
     columns,
     transform: (kline) => {
@@ -23,8 +24,8 @@ function closeProcessor(seconds) {
     columns: ["id", "timestamp", "close"],
     transform: (kline) => [
       id.kline,
-      seconds ? kline[KlineKeys.timestamp] / 1000 : kline[KlineKeys.timestamp],
-      kline[KlineKeys.close],
+      seconds ? kline.timestamp / 1000 : kline.timestamp,
+      kline.close,
     ],
   }
 }
@@ -101,10 +102,9 @@ function indicatorsProcessor(
   return {
     columns,
     transform: (kline, moment = false) => {
-      const kobj = klineObject(kline)
       const values = Object.entries(indicatorsMap)
         .map(([name, indicator]) => {
-          const value = indicator.value(kobj, moment)
+          const value = indicator.value(kline, moment)
           const priorValue = priorValues[name]
 
           if (value === undefined) {
@@ -114,7 +114,7 @@ function indicatorsProcessor(
           priorValues[name] = value
 
           return binaryIndicators
-            ? indicator.trend({ close: kobj.close, value, priorValue })
+            ? indicator.trend({ close: kline.close, value, priorValue })
             : value
         })
         .flat()
@@ -124,7 +124,7 @@ function indicatorsProcessor(
       }
 
       if (ohlc) {
-        values.push(kobj.open, kobj.high, kobj.low, kobj.close)
+        values.push(kline.open, kline.high, kline.low, kline.close)
       }
 
       if (stream) {
@@ -137,10 +137,10 @@ function indicatorsProcessor(
         return [
           ...head.values,
           binaryPrediction
-            ? horizonKlines[0].kline[KlineKeys.close] < kline[KlineKeys.close]
+            ? horizonKlines[0].kline.close < kline.close
               ? 1
               : -1
-            : kline[KlineKeys.close],
+            : kline.close,
         ]
       }
     },
